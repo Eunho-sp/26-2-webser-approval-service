@@ -1,0 +1,185 @@
+[run] 2026-11-25T05:38:43.861Z node v24.22.3
+[run] npm run db:reset (RESET 입력) → 계속하려면 RESET 입력: 초기화 완료. npm start로 실행하세요.
+[server] 과제 2 시작: http://127.0.0.1:3000
+종료: Ctrl+C
+[run] 서버 시작 pid=2296
+
+===== U01 학생 신청과 담당 운영자의 승인 =====
+
+[캡처] u01-1-alice-apply.png — alice가 행사 1에 신청 → 승인 대기
+  화면 사용자: 민지 · 학생
+  안내 문구: 처리가 완료되었습니다. 현재 저장 결과를 표시합니다.
+  행사 승인 인원: 승인 0 / 정원 2명 | 승인 0 / 정원 1명
+  신청 목록: 민지 · #1승인 대기
+  최근 API: POST /api/events/1/applications → HTTP 201
+
+[캡처] u01-2-manager1-approve.png — manager1이 alice 신청을 승인
+  화면 사용자: 운영자 A · 운영자
+  안내 문구: 처리가 완료되었습니다. 현재 저장 결과를 표시합니다.
+  행사 승인 인원: 승인 1 / 정원 2명 | 승인 0 / 정원 1명
+  신청 목록: 민지 · #1참가 승인
+  최근 API: POST /api/applications/1/approve → HTTP 200
+
+[캡처] u01-3-alice-latest.png — alice 화면에서 새로고침 후 최신 상태와 변경 이력
+  화면 사용자: 민지 · 학생
+  안내 문구: 현재 저장 상태를 다시 불러왔습니다.
+  행사 승인 인원: 승인 1 / 정원 2명 | 승인 0 / 정원 1명
+  신청 목록: 민지 · #1참가 승인
+  최근 API: GET /api/applications/1/history → HTTP 200
+  변경 이력:
+    #1 APPLY · 없음 → PENDING · 행위자 #1
+    #2 APPROVE · PENDING → APPROVED · 행위자 #3
+
+===== U02 대기 취소 후 오래된 운영자 화면의 승인 거부 =====
+
+[캡처] u02-1-manager1-stale-view.png — manager1 화면: bob이 승인 대기로 보이는 상태(이후 새로고침하지 않음)
+  화면 사용자: 운영자 A · 운영자
+  안내 문구: 현재 저장 상태를 다시 불러왔습니다.
+  행사 승인 인원: 승인 1 / 정원 2명 | 승인 0 / 정원 1명
+  신청 목록: 민지 · #1참가 승인 | 준호 · #2승인 대기
+  최근 API: POST /api/applications/1/approve → HTTP 200
+
+[캡처] u02-2-bob-cancel.png — bob이 자신의 대기 신청을 취소
+  화면 사용자: 준호 · 학생
+  안내 문구: 처리가 완료되었습니다. 현재 저장 결과를 표시합니다.
+  행사 승인 인원: 승인 1 / 정원 2명 | 승인 0 / 정원 1명
+  신청 목록: 준호 · #2대기 취소
+  최근 API: POST /api/applications/2/cancel → HTTP 200
+
+[캡처] u02-3-manager1-approve-rejected.png — 오래된 manager1 화면에서 bob 승인 시도 → 서버가 거부
+  화면 사용자: 운영자 A · 운영자
+  안내 문구: 409 INVALID_STATE: 현재 상태에서는 이 작업을 수행할 수 없습니다.
+  행사 승인 인원: 승인 1 / 정원 2명 | 승인 0 / 정원 1명
+  신청 목록: 민지 · #1참가 승인 | 준호 · #2대기 취소
+  최근 API: POST /api/applications/2/approve → HTTP 409
+
+[캡처] u02-4-manager1-history.png — 거부 후 이력(bob 신청에 승인 이력이 추가되지 않음)
+  화면 사용자: 운영자 A · 운영자
+  안내 문구: 409 INVALID_STATE: 현재 상태에서는 이 작업을 수행할 수 없습니다.
+  행사 승인 인원: 승인 1 / 정원 2명 | 승인 0 / 정원 1명
+  신청 목록: 민지 · #1참가 승인 | 준호 · #2대기 취소
+  최근 API: GET /api/applications/2/history → HTTP 200
+  변경 이력:
+    #1 APPLY · 없음 → PENDING · 행위자 #1
+    #2 APPROVE · PENDING → APPROVED · 행위자 #3
+    #3 APPLY · 없음 → PENDING · 행위자 #2
+    #4 CANCEL · PENDING → CANCELLED · 행위자 #2
+
+===== U03 서버 종료·재실행 후 상태와 변경 이력 유지 =====
+[run] 서버 종료 pid=2296
+[run] 종료 후 health 요청 실패(서버 내려감): true
+[server] 과제 2 시작: http://127.0.0.1:3000
+종료: Ctrl+C
+[run] 서버 시작 pid=23368
+
+[캡처] u03-1-after-restart-logged-out.png — 재실행 후 다시 연 화면: 로그인은 풀리고 승인 인원은 유지
+  화면 사용자: 로그인 전
+  안내 문구: 로그인하면 신청·대기 취소·승인·승인 취소를 할 수 있습니다. 모든 변경은 변경 이력에 기록됩니다.
+  행사 승인 인원: 승인 1 / 정원 2명 | 승인 0 / 정원 1명
+  신청 목록: (없음)
+  최근 API: 아직 요청하지 않았습니다.
+
+[캡처] u03-2-alice-after-restart.png — 재로그인한 alice: 참가 승인 상태와 이력 유지
+  화면 사용자: 민지 · 학생
+  안내 문구: 민지님으로 로그인했습니다.
+  행사 승인 인원: 승인 1 / 정원 2명 | 승인 0 / 정원 1명
+  신청 목록: 민지 · #1참가 승인
+  최근 API: GET /api/applications/1/history → HTTP 200
+  변경 이력:
+    #1 APPLY · 없음 → PENDING · 행위자 #1
+    #2 APPROVE · PENDING → APPROVED · 행위자 #3
+
+[캡처] u03-3-manager1-after-restart.png — 재로그인한 manager1: 행사 1 전체 신청과 이력 유지
+  화면 사용자: 운영자 A · 운영자
+  안내 문구: 운영자 A님으로 로그인했습니다.
+  행사 승인 인원: 승인 1 / 정원 2명 | 승인 0 / 정원 1명
+  신청 목록: 민지 · #1참가 승인 | 준호 · #2대기 취소
+  최근 API: GET /api/applications/2/history → HTTP 200
+  변경 이력:
+    #1 APPLY · 없음 → PENDING · 행위자 #1
+    #2 APPROVE · PENDING → APPROVED · 행위자 #3
+    #3 APPLY · 없음 → PENDING · 행위자 #2
+    #4 CANCEL · PENDING → CANCELLED · 행위자 #2
+
+===== U04 승인 취소 → 다음 대기자 승급 → 두 신청의 이력 =====
+[run] 서버 종료 pid=23368
+[run] 종료 후 health 요청 실패(서버 내려감): true
+[run] npm run db:reset (RESET 입력) → 계속하려면 RESET 입력: 초기화 완료. npm start로 실행하세요.
+[server] 과제 2 시작: http://127.0.0.1:3000
+종료: Ctrl+C
+[run] 서버 시작 pid=24620
+
+[캡처] u04-1-manager2-approve-alice.png — 새 DB: alice·bob·charlie 순서로 행사 2 신청, manager2가 alice 승인(정원 1명)
+  화면 사용자: 운영자 B · 운영자
+  안내 문구: 처리가 완료되었습니다. 현재 저장 결과를 표시합니다.
+  행사 승인 인원: 승인 0 / 정원 2명 | 승인 1 / 정원 1명
+  신청 목록: 민지 · #1참가 승인 | 준호 · #2승인 대기 | 서연 · #3승인 대기
+  최근 API: POST /api/applications/1/approve → HTTP 200
+
+[캡처] u04-2-manager2-revoke.png — alice 승인 취소 → bob 자동 승급, charlie 대기 유지 (응답 revoked/promoted)
+  화면 사용자: 운영자 B · 운영자
+  안내 문구: 처리가 완료되었습니다. 현재 저장 결과를 표시합니다.
+  행사 승인 인원: 승인 0 / 정원 2명 | 승인 1 / 정원 1명
+  신청 목록: 민지 · #1승인 취소 | 준호 · #2참가 승인 | 서연 · #3승인 대기
+  최근 API: POST /api/applications/1/revoke → HTTP 200
+
+[캡처] u04-3-manager2-history.png — alice의 REVOKE 이력과 bob의 AUTO_APPROVE 이력(원인 이력 ID 연결)
+  화면 사용자: 운영자 B · 운영자
+  안내 문구: 처리가 완료되었습니다. 현재 저장 결과를 표시합니다.
+  행사 승인 인원: 승인 0 / 정원 2명 | 승인 1 / 정원 1명
+  신청 목록: 민지 · #1승인 취소 | 준호 · #2참가 승인 | 서연 · #3승인 대기
+  최근 API: GET /api/applications/3/history → HTTP 200
+  변경 이력:
+    #1 APPLY · 없음 → PENDING · 행위자 #1
+    #4 APPROVE · PENDING → APPROVED · 행위자 #4
+    #5 REVOKE · APPROVED → REVOKED · 행위자 #4 · 사유: 행사 운영 사정으로 승인 취소합니다
+    #2 APPLY · 없음 → PENDING · 행위자 #2
+    #6 AUTO_APPROVE · PENDING → APPROVED · 행위자 #4 · 원인 이력 #5
+    #3 APPLY · 없음 → PENDING · 행위자 #5
+
+[캡처] u04-4-bob-view.png — bob 화면: 자동 승급된 상태와 본인 이력
+  화면 사용자: 준호 · 학생
+  안내 문구: 준호님으로 로그인했습니다.
+  행사 승인 인원: 승인 0 / 정원 2명 | 승인 1 / 정원 1명
+  신청 목록: 준호 · #2참가 승인
+  최근 API: GET /api/applications/2/history → HTTP 200
+  변경 이력:
+    #2 APPLY · 없음 → PENDING · 행위자 #2
+    #6 AUTO_APPROVE · PENDING → APPROVED · 행위자 #4 · 원인 이력 #5
+
+===== U05 대기자 없는 승인 취소 =====
+[run] 서버 종료 pid=24620
+[run] 종료 후 health 요청 실패(서버 내려감): true
+[run] npm run db:reset (RESET 입력) → 계속하려면 RESET 입력: 초기화 완료. npm start로 실행하세요.
+[server] 과제 2 시작: http://127.0.0.1:3000
+종료: Ctrl+C
+[run] 서버 시작 pid=7616
+
+[캡처] u05-1-manager2-approve.png — 새 DB: alice만 행사 2 신청·승인 (승인 1/1)
+  화면 사용자: 운영자 B · 운영자
+  안내 문구: 처리가 완료되었습니다. 현재 저장 결과를 표시합니다.
+  행사 승인 인원: 승인 0 / 정원 2명 | 승인 1 / 정원 1명
+  신청 목록: 민지 · #1참가 승인
+  최근 API: POST /api/applications/1/approve → HTTP 200
+
+[캡처] u05-2-manager2-revoke.png — 승인 취소 → REVOKED, 승인 0명, promoted=null
+  화면 사용자: 운영자 B · 운영자
+  안내 문구: 처리가 완료되었습니다. 현재 저장 결과를 표시합니다.
+  행사 승인 인원: 승인 0 / 정원 2명 | 승인 0 / 정원 1명
+  신청 목록: 민지 · #1승인 취소
+  최근 API: POST /api/applications/1/revoke → HTTP 200
+
+[캡처] u05-3-manager2-history.png — alice 신청의 이력: AUTO_APPROVE 없음
+  화면 사용자: 운영자 B · 운영자
+  안내 문구: 처리가 완료되었습니다. 현재 저장 결과를 표시합니다.
+  행사 승인 인원: 승인 0 / 정원 2명 | 승인 0 / 정원 1명
+  신청 목록: 민지 · #1승인 취소
+  최근 API: GET /api/applications/1/history → HTTP 200
+  변경 이력:
+    #1 APPLY · 없음 → PENDING · 행위자 #1
+    #2 APPROVE · PENDING → APPROVED · 행위자 #4
+    #3 REVOKE · APPROVED → REVOKED · 행위자 #4 · 사유: 대기자가 없는 상태의 승인 취소
+
+[run] 완료
+[run] 서버 종료 pid=7616
+[run] 종료 후 health 요청 실패(서버 내려감): true
